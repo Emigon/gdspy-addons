@@ -15,7 +15,11 @@ def corner_correction(self, direction):
     self.centre_line.segment(self.width/2, invert(direction))
 
 class CoplanarWG(object):
-    def __init__(self, width, impedance_ratio = 2, simple = False):
+    def __init__(self,
+                 width,
+                 impedance_ratio = 2,
+                 simple = False,
+                 overexposure = 0.0):
         """ initialises a coplanar waveguide with centre line width and gap ratio
 
         Args:
@@ -24,14 +28,16 @@ class CoplanarWG(object):
                                 -> defines characteristic impedence of CPW
             simple:             use orthogonal turns instead of circular arcs.
                                 useful for sonnet simulations
+            overexposure:       ammount of overexposure in units of width
         """
         self.impedance_ratio = impedance_ratio
         self.simple = simple
         self.length = 0
+        self.dx = 2*overexposure
         self.width = width
 
-        self.centre_line = gdspy.Path(width = width)
-        self.shadow = gdspy.Path(width = self.impedance_ratio*width)
+        self.centre_line = gdspy.Path(width = self.width + self.dx)
+        self.shadow = gdspy.Path(width = self.impedance_ratio*width - self.dx)
 
     def extend_shadow(self, L, direction, **kwargs):
         self.shadow.segment(L, direction, **kwargs)
@@ -42,6 +48,9 @@ class CoplanarWG(object):
         return self # for operation stacking
 
     def segment(self, L, direction, **kwargs):
+        if 'final_width' in kwargs:
+            kwargs['final_width'] += self.dx
+
         if self.simple and 'final_width' in kwargs:
             self.centre_line.segment(0, direction, **kwargs)
         self.centre_line.segment(L, direction, **kwargs)
@@ -49,6 +58,7 @@ class CoplanarWG(object):
         if 'final_width' in kwargs:
             self.width = kwargs['final_width']
             kwargs['final_width'] *= self.impedance_ratio
+            kwargs['final_width'] -= (1 + self.impedance_ratio)*self.dx
 
         if self.simple and 'final_width' in kwargs:
             self.extend_shadow(self.width, direction)
